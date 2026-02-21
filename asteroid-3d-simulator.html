@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Asteroid Impact Simulator - WebGL Visualization</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #renderer {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 300px;
+            z-index: 100;
+        }
+        
+        #controls h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+        
+        .control-group select {
+            width: 100%;
+            padding: 5px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .value-display {
+            float: right;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        #simulate-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        #simulate-btn:hover {
+            background: #1976D2;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 400px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 200;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #help {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="renderer"></canvas>
+        
+        <div id="loading">
+            <div class="spinner"></div>
+            <div>Loading Earth textures...</div>
+        </div>
+        
+        <div id="controls">
+            <h2>🌍 Impact Parameters</h2>
+            
+            <div class="control-group">
+                <label>
+                    Asteroid Diameter
+                    <span class="value-display" id="diameter-display">60 m</span>
+                </label>
+                <input type="range" id="diameter" min="10" max="1000" value="60" step="5">
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    Velocity
+                    <span class="value-display" id="velocity-display">15 km/s</span>
+                </label>
+                <input type="range" id="velocity" min="11" max="72" value="15" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label>Entry Angle
+                    <span class="value-display" id="angle-display">45°</span>
+                </label>
+                <input type="range" id="angle" min="15" max="90" value="45" step="5">
+            </div>
+            
+            <div class="control-group">
+                <label>Composition</label>
+                <select id="composition">
+                    <option value="ice">Icy Comet</option>
+                    <option value="stony" selected>Stony Asteroid</option>
+                    <option value="iron">Iron Asteroid</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Target Location</label>
+                <select id="location">
+                    <option value="nyc">New York City</option>
+                    <option value="tokyo">Tokyo</option>
+                    <option value="london">London</option>
+                    <option value="paris">Paris</option>
+                    <option value="mumbai">Mumbai</option>
+                    <option value="desert" selected>Remote Desert</option>
+                </select>
+            </div>
+            
+            <button id="simulate-btn">💥 Simulate Impact</button>
+        </div>
+        
+        <div id="info" style="display: none;">
+            <strong>Impact Energy:</strong> <span id="energy">--</span> MT<br>
+            <strong>Airburst Altitude:</strong> <span id="altitude">--</span> km<br>
+            <strong>Blast Radius:</strong> <span id="radius">--</span> km<br>
+            <strong>Estimated Casualties:</strong> <span id="casualties">--</span>
+        </div>
+        
+        <div id="help">
+            <strong>Camera Controls:</strong><br>
+            Left mouse: Rotate<br>
+            Right mouse: Pan<br>
+            Scroll: Zoom
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Phase 1: Basic 3D Earth with asteroid entry
+        
+        let scene, camera, renderer, controls;
+        let earth, asteroid, asteroidTrail;
+        let isSimulating = false;
+        let animationId;
+        
+        // City coordinates (lat, lon)
+        const cityCoords = {
+            nyc: { lat: 40.7128, lon: -74.0060 },
+            tokyo: { lat: 35.6762, lon: 139.6503 },
+            london: { lat: 51.5074, lon: -0.1278 },
+            paris: { lat: 48.8566, lon: 2.3522 },
+            mumbai: { lat: 19.0760, lon: 72.8777 },
+            desert: { lat: 30, lon: 0 }
+        };
+        
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                45,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 0, 15);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+                canvas: document.getElementById('renderer'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 7;
+            controls.maxDistance = 50;
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+            
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.position.set(5, 3, 5);
+            scene.add(sunLight);
+            
+            // Create Earth
+            createEarth();
+            
+            // Stars
+            createStars();
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Event listeners
+            document.getElementById('diameter').addEventListener('input', updateDisplays);
+            document.getElementById('velocity').addEventListener('input', updateDisplays);
+            document.getElementById('angle').addEventListener('input', updateDisplays);
+            document.getElementById('simulate-btn').addEventListener('click', simulateImpact);
+            
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function createEarth() {
+            const geometry = new THREE.SphereGeometry(5, 64, 64);
+            
+            // Simple blue Earth for now (will add textures in Phase 2)
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x2233ff,
+                emissive: 0x112244,
+                specular: 0x333333,
+                shininess: 25
+            });
+            
+            earth = new THREE.Mesh(geometry, material);
+            scene.add(earth);
+            
+            // Add atmosphere glow
+            const atmosphereGeometry = new THREE.SphereGeometry(5.1, 64, 64);
+            const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                color: 0x6688ff,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            earth.add(atmosphere);
+        }
+        
+        function createStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 200;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.1
+            });
+            
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        
+        function latLonToVector3(lat, lon, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            
+            const x = -(radius * Math.sin(phi) * Math.cos(theta));
+            const z = (radius * Math.sin(phi) * Math.sin(theta));
+            const y = (radius * Math.cos(phi));
+            
+            return new THREE.Vector3(x, y, z);
+        }
+        
+        function simulateImpact() {
+            if (isSimulating) return;
+            
+            isSimulating = true;
+            document.getElementById('info').style.display = 'block';
+            
+            const diameter = parseFloat(document.getElementById('diameter').value);
+            const velocity = parseFloat(document.getElementById('velocity').value);
+            const angle = parseFloat(document.getElementById('angle').value);
+            const location = document.getElementById('location').value;
+            const coords = cityCoords[location];
+            
+            // Calculate impact physics
+            const energy = calculateEnergy(diameter, velocity);
+            const altitude = calculateAirburst(diameter, velocity);
+            const radius = calculateBlastRadius(energy, altitude);
+            
+            // Update info display
+            document.getElementById('energy').textContent = energy.toFixed(1);
+            document.getElementById('altitude').textContent = altitude === 0 ? 'Ground' : altitude.toFixed(1);
+            document.getElementById('radius').textContent = radius.toFixed(1);
+            document.getElementById('casualties').textContent = 'Calculating...';
+            
+            // Animate camera to impact location
+            const targetPos = latLonToVector3(coords.lat, coords.lon, 5);
+            animateCameraToTarget(targetPos);
+            
+            // Create and animate asteroid
+            setTimeout(() => createAsteroid(targetPos, diameter, velocity, angle), 1000);
+        }
+        
+        function createAsteroid(targetPos, diameter, velocity, angle) {
+            // Remove old asteroid if exists
+            if (asteroid) {
+                scene.remove(asteroid);
+                if (asteroidTrail) scene.remove(asteroidTrail);
+            }
+            
+            // Create asteroid
+            const size = diameter / 1000; // Scale down for visualization
+            const geometry = new THREE.SphereGeometry(size, 16, 16);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x888888,
+                emissive: 0xff4400,
+                emissiveIntensity: 0
+            });
+            
+            asteroid = new THREE.Mesh(geometry, material);
+            
+            // Start position (above target, offset by entry angle)
+            const startPos = targetPos.clone().multiplyScalar(3);
+            asteroid.position.copy(startPos);
+            scene.add(asteroid);
+            
+            // Animate entry
+            animateAsteroidEntry(asteroid, startPos, targetPos, velocity);
+        }
+        
+        function animateAsteroidEntry(asteroid, startPos, targetPos, velocity) {
+            const startTime = Date.now();
+            const duration = 3000; // 3 seconds animation
+            
+            function updateEntry() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Interpolate position
+                asteroid.position.lerpVectors(startPos, targetPos, progress);
+                
+                // Increase glow as it enters atmosphere
+                if (progress > 0.5) {
+                    asteroid.material.emissiveIntensity = (progress - 0.5) * 4;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateEntry);
+                } else {
+                    // Impact!
+                    createExplosion(targetPos);
+                    scene.remove(asteroid);
+                    isSimulating = false;
+                }
+            }
+            
+            updateEntry();
+        }
+        
+        function createExplosion(position) {
+            // Simple fireball for Phase 1
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const fireball = new THREE.Mesh(geometry, material);
+            fireball.position.copy(position);
+            scene.add(fireball);
+            
+            // Animate expansion
+            const startTime = Date.now();
+            const duration = 2000;
+            
+            function updateExplosion() {
+                const elapsed = Date.now() - startTime;
+                const progress = elapsed / duration;
+                
+                if (progress < 1) {
+                    fireball.scale.setScalar(1 + progress * 3);
+                    fireball.material.opacity = 0.8 * (1 - progress);
+                    requestAnimationFrame(updateExplosion);
+                } else {
+                    scene.remove(fireball);
+                }
+            }
+            
+            updateExplosion();
+        }
+        
+        function animateCameraToTarget(targetPos) {
+            const startPos = camera.position.clone();
+            const endPos = targetPos.clone().multiplyScalar(2.5);
+            const startTime = Date.now();
+            const duration = 1500;
+            
+            function updateCamera() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+                
+                camera.position.lerpVectors(startPos, endPos, eased);
+                camera.lookAt(targetPos);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateCamera);
+                }
+            }
+            
+            updateCamera();
+        }
+        
+        // Physics calculations (same as 2D version)
+        function calculateEnergy(diameter, velocity) {
+            const density = 2600; // kg/m³ for stony
+            const radius = diameter / 2;
+            const volume = (4/3) * Math.PI * Math.pow(radius, 3);
+            const mass = volume * density;
+            const energy_J = 0.5 * mass * Math.pow(velocity * 1000, 2);
+            return energy_J / 4.184e15; // Convert to megatons
+        }
+        
+        function calculateAirburst(diameter, velocity) {
+            const strength = 1e6; // Pa for stony
+            const atm_density = 1.225;
+            const ram_pressure = 0.5 * atm_density * Math.pow(velocity * 1000, 2);
+            const altitude = -7.16 * Math.log(strength / ram_pressure);
+            return Math.max(0, Math.min(altitude, 50));
+        }
+        
+        function calculateBlastRadius(energy, altitude) {
+            const base_radius = 2.2 * Math.pow(energy, 0.33);
+            const optimal_altitude = 0.4 * base_radius;
+            const altitude_factor = altitude === 0 ? 0.7 : Math.exp(-Math.abs(altitude - optimal_altitude) / 5);
+            return base_radius * Math.max(altitude_factor, 0.3);
+        }
+        
+        function updateDisplays() {
+            document.getElementById('diameter-display').textContent = document.getElementById('diameter').value + ' m';
+            document.getElementById('velocity-display').textContent = document.getElementById('velocity').value + ' km/s';
+            document.getElementById('angle-display').textContent = document.getElementById('angle').value + '°';
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            // Slowly rotate Earth
+            earth.rotation.y += 0.001;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
