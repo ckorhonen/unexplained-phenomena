@@ -128,6 +128,26 @@
             font-size: 14px;
         }
         
+        .preset-btn {
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .preset-btn:hover {
+            background: #45a049;
+        }
+        
+        .preset-btn:active {
+            transform: scale(0.98);
+        }
+        
         @media (max-width: 768px) {
             .controls {
                 grid-template-columns: 1fr;
@@ -205,9 +225,21 @@
                     </div>
                     
                     <div class="control-group">
-                        <button onclick="calculate()" style="width: 100%; padding: 12px; background: #2196F3; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px;">
+                        <button onclick="calculate()" style="width: 100%; padding: 12px; background: #2196F3; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; font-weight: bold;">
                             💥 Calculate Impact
                         </button>
+                    </div>
+                    
+                    <div class="control-group" style="margin-top: 20px;">
+                        <label>Quick Presets</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <button onclick="loadPreset('tunguska_nyc')" class="preset-btn">Tunguska → NYC</button>
+                            <button onclick="loadPreset('tunguska_tokyo')" class="preset-btn">Tunguska → Tokyo</button>
+                            <button onclick="loadPreset('chelyabinsk_la')" class="preset-btn">Chelyabinsk → LA</button>
+                            <button onclick="loadPreset('city_killer_mumbai')" class="preset-btn">City-Killer → Mumbai</button>
+                            <button onclick="loadPreset('dinosaur_killer')" class="preset-btn">🦕 Chicxulub</button>
+                            <button onclick="randomScenario()" class="preset-btn" style="background: #9C27B0;">🎲 Random</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -506,6 +538,119 @@
             
             // Draw visualization
             drawVisualization(blast_radius_km, altitude_km, location_name);
+        }
+        
+        // Preset scenarios
+        const presets = {
+            tunguska_nyc: {
+                diameter: 60,
+                velocity: 15,
+                angle: 30,
+                composition: 'stony',
+                location: 'nyc',
+                name: 'Tunguska over New York City'
+            },
+            tunguska_tokyo: {
+                diameter: 60,
+                velocity: 15,
+                angle: 30,
+                composition: 'stony',
+                location: 'tokyo',
+                name: 'Tunguska over Tokyo'
+            },
+            chelyabinsk_la: {
+                diameter: 20,
+                velocity: 19,
+                angle: 20,
+                composition: 'stony',
+                location: 'la',
+                name: 'Chelyabinsk over Los Angeles'
+            },
+            city_killer_mumbai: {
+                diameter: 200,
+                velocity: 20,
+                angle: 45,
+                composition: 'stony',
+                location: 'mumbai',
+                name: '200m City-Killer over Mumbai'
+            },
+            dinosaur_killer: {
+                diameter: 10000,
+                velocity: 20,
+                angle: 60,
+                composition: 'stony',
+                location: 'nyc',
+                name: 'Chicxulub Dinosaur-Killer (10km)'
+            }
+        };
+        
+        function loadPreset(presetName) {
+            const preset = presets[presetName];
+            if (!preset) return;
+            
+            // Set all controls
+            document.getElementById('diameter').value = preset.diameter;
+            document.getElementById('diameter-display').textContent = preset.diameter + ' m';
+            
+            document.getElementById('velocity').value = preset.velocity;
+            document.getElementById('velocity-display').textContent = preset.velocity + ' km/s';
+            
+            document.getElementById('angle').value = preset.angle;
+            document.getElementById('angle-display').textContent = preset.angle + '°';
+            
+            document.getElementById('composition').value = preset.composition;
+            document.getElementById('location').value = preset.location;
+            
+            // Show notification
+            const notification = document.createElement('div');
+            notification.textContent = `📡 Loaded: ${preset.name}`;
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 1000; font-weight: bold;';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
+                setTimeout(() => notification.remove(), 500);
+            }, 2000);
+            
+            // Calculate immediately
+            calculate();
+        }
+        
+        function randomScenario() {
+            const randomDiameter = Math.floor(Math.random() * (500 - 20) + 20);
+            const randomVelocity = Math.floor(Math.random() * (40 - 12) + 12);
+            const randomAngle = Math.floor(Math.random() * (80 - 20) + 20);
+            const compositions = ['ice', 'stony', 'iron'];
+            const randomComposition = compositions[Math.floor(Math.random() * compositions.length)];
+            const locations = ['nyc', 'tokyo', 'london', 'paris', 'la', 'mumbai', 'desert'];
+            const randomLocation = locations[Math.floor(Math.random() * locations.length)];
+            
+            document.getElementById('diameter').value = randomDiameter;
+            document.getElementById('diameter-display').textContent = randomDiameter + ' m';
+            
+            document.getElementById('velocity').value = randomVelocity;
+            document.getElementById('velocity-display').textContent = randomVelocity + ' km/s';
+            
+            document.getElementById('angle').value = randomAngle;
+            document.getElementById('angle-display').textContent = randomAngle + '°';
+            
+            document.getElementById('composition').value = randomComposition;
+            document.getElementById('location').value = randomLocation;
+            
+            // Notification
+            const notification = document.createElement('div');
+            notification.textContent = `🎲 Random scenario generated!`;
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #9C27B0; color: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 1000; font-weight: bold;';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
+                setTimeout(() => notification.remove(), 500);
+            }, 2000);
+            
+            calculate();
         }
         
         // Initial calculation on load
